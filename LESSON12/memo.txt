@@ -1,0 +1,58 @@
+/* According to POSIX.1-2001, POSIX.1-2008 */
+       #include <sys/select.h>
+
+       /* According to earlier standards */
+       #include <sys/time.h>
+       #include <sys/types.h>
+       #include <unistd.h>
+
+       int select(int nfds, fd_set *readfds, fd_set *writefds,
+                  fd_set *exceptfds, struct timeval *timeout);
+
+       void FD_CLR(int fd, fd_set *set);
+       int  FD_ISSET(int fd, fd_set *set);
+       void FD_SET(int fd, fd_set *set);
+       void FD_ZERO(fd_set *set);
+
+       #include <sys/select.h>
+
+       int pselect(int nfds, fd_set *readfds, fd_set *writefds,
+                   fd_set *exceptfds, const struct timespec *timeout,
+                   const sigset_t *sigmask);
+
+//point-----------------------------------------
+nfds should be set to the highest-numbered file descriptor in any of
+       the three sets, plus 1.  The indicated file descriptors in each  set
+       are checked, up to this limit (but see BUGS).
+
+Four macros are provided to manipulate the sets.  FD_ZERO() clears a
+       set.   FD_SET()  and FD_CLR() add and remove a given file descriptor
+       from a set.  FD_ISSET() tests to see if a file descriptor is part of
+       the set; this is useful after select() returns.
+
+Each of the three file descriptor sets may be specified as  NULL  if
+       no file descriptors are to be watched for the corresponding class of
+       events.
+       （監視せんでもいいやつはNULLでいいってこと）
+
+
+-------------------------------------------------------------------
+int select(int nfds, fd_set *readfds, fd_set *writefds,
+                  fd_set *exceptfds, struct timeval *timeout);
+-----------------------------------------------------------------------
+int select(int __nfds, fd_set *__restrict__ __readfds, fd_set *__restrict__ __writefds, fd_set *__restrict__ __exceptfds, struct timeval *__restrict__ __timeout)
+Check the first NFDS descriptors each in READFDS (if not NULL) for read
+readiness, in WRITEFDS (if not NULL) for write readiness, and in EXCEPTFDS
+(if not NULL) for exceptional conditions. If TIMEOUT is not NULL, time out
+after waiting the interval specified therein. Returns the number of ready
+descriptors, or -1 for errors.
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+一般的に、recvやreadの場合、指定ソケットからの読み込み・書き込み可能状態->実際の読み書きという手順を踏み、
+この２工程を終えることで初めて関数が終わる。逆に、何らかの原因で１工程目が終わらない場合などがあった場合、
+関数が終わらず（ブロッキング）に永遠に待たされる可能性がある。
+そんな時に役立つのが、selectである。
+これは、ソケットの状態を監視することにより、この「可能状態」というものを見極め、readyなものだけを処理へ移行することができる。
+selectのセット内部でソケットの監視という名のブロッキングをしているのはそうなのだが、
+これがただのブロッキングと違うのは、タイムアウト設定ができるという点である。
+つまり、あまりにも時間が経ちすぎたら処理を投げ出すという選択が可能であるということだ。
