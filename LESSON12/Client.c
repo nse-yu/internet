@@ -9,12 +9,12 @@
 #include <arpa/inet.h>
 
 int main(int argc,char** argv){
-    int fd;
+    int fd,fd2;
     char *dest;
     struct hostent *addr;
     struct sockaddr_in dstAddr;
     unsigned short serverPort;
-    char buf[2048];
+    char buf[2048],buf2[2048];
 
     if(argc != 3){
         fprintf(stderr,"USAGE:%s svr_addr \n",argv[0]);
@@ -42,6 +42,10 @@ int main(int argc,char** argv){
         fprintf(stdout,"socket error\n");
         return -1;
     }
+    if((fd2 = socket(AF_INET,SOCK_STREAM,0)) < 0){
+        fprintf(stdout,"socket error\n");
+        return -1;
+    }
 
     //connect to server
     //sendするのにfdを使う。sendtoならいらないかも
@@ -49,12 +53,23 @@ int main(int argc,char** argv){
         perror("connect");
         exit(-1);
     }
+    if(connect(fd2,(struct sockaddr*)&dstAddr,sizeof(struct sockaddr_in))){
+        perror("connect");
+        exit(-1);
+    }
+
     //送信リクエストメッセージの格納
-    memcpy(buf,"This is the message sent by the client.",strlen("This is the message sent by the client."));
+    memcpy(buf,"This is the message sent by the client1",strlen("This is the message sent by the client1"));
+    memcpy(buf2,"This is the message sent by the client2",strlen("This is the message sent by the client2"));
 
     if(send(fd,buf,strlen(buf),0) < 0){
         perror("send");
         close(fd);
+        return -1;
+    }
+    if(send(fd2,buf2,strlen(buf2),0) < 0){
+        perror("send");
+        close(fd2);
         return -1;
     }
 
@@ -64,6 +79,13 @@ int main(int argc,char** argv){
         return -1;
     }
     printf("Received [%s] from Server.\n",buf);
+
+    memset(buf2,'\0',sizeof(buf2));
+    if(recv(fd2,buf2,sizeof(buf2),0) < 0){
+        perror("recv");
+        return -1;
+    }
+    printf("Received [%s] from Server.\n",buf2);
     
     close(fd);
     return 0;

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -7,7 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int main(){//-----------------------------------------------------------main
+int main(int argc,char** argv){//-----------------------------------------------------------main
     int fd;
     int fdl[10];
     struct servent *serv;
@@ -15,6 +16,7 @@ int main(){//-----------------------------------------------------------main
     int len;
     fd_set fds,readfds;
     char buf[2048];
+    unsigned short myPort;
     int cnt;
 
     //initialize
@@ -27,13 +29,15 @@ int main(){//-----------------------------------------------------------main
     memset(&addr,'\0',sizeof(addr));
     memset(&rcvaddr,'\0',sizeof(rcvaddr));
 
+    myPort = atoi(argv[1]);
+
     //socket open
-    if((fd = socket(AF_INET,SOCK_DGRAM,0)) < 0){//---------------------------------------------if1
+    if((fd = socket(AF_INET,SOCK_STREAM,0)) < 0){//---------------------------------------------if1
         perror("socket");
         return -1;
     }//---------------------------------------------------------------------------------------e_if1
     addr.sin_family = AF_INET;
-    addr.sin_port = ntohs(50000);
+    addr.sin_port = htons(myPort);
     addr.sin_addr.s_addr = INADDR_ANY;
 
     //socketの確立
@@ -52,6 +56,7 @@ int main(){//-----------------------------------------------------------main
     struct timeval tv;//timeout
 
     while(1){//----------------------------------------------------------------------------------------------------------------while
+    fprintf(stdout,"fd_zero-----------------------------------------------------------------\n");
         //set all fd select
         FD_ZERO(&rfds);//initialize
         FD_SET(fd,&rfds);//set fd read monitor set
@@ -61,6 +66,7 @@ int main(){//-----------------------------------------------------------main
             //accept（接続）が成功したものだけを監視対象（読み込み可能性の監視）とする。
             if(fdl[i] != -1){//--------------------------------------------------------------if4
                 FD_SET(fdl[i],&rfds);
+                fprintf(stdout,"index = %d: socket %d completed to set\n",i,fdl[i]);
                 //常にmaxfdは最大であることが必要なので、for文でついでに更新する
                 if(fdl[i] > maxfd){//--------------------------------------if5
                     maxfd = fdl[i];
@@ -85,7 +91,7 @@ int main(){//-----------------------------------------------------------main
             goto end;
         }else if(cnt == 0){//タイムアウト
             continue;
-        }else{//ready状態
+        }else{//setにfdあり
             if(FD_ISSET(fd,&rfds)){//----------------------------------------------------------------------------if8
                 for(int i = 0;i < sizeof(fdl)/sizeof(fdl[0]);i++){//-------------------------------------for3
                 //初期状態では全ての要素が-1
@@ -106,11 +112,18 @@ int main(){//-----------------------------------------------------------main
             //accept（接続）し、監視されているfdに対する処理
             for(int i = 0;i < sizeof(fdl)/sizeof(fdl[0]);i++){//---------------------------for4
             //読み込み可能
+            fprintf(stdout,"index = %d: focus on socket %d | ",i,fdl[i]);
                     if(FD_ISSET(fdl[i],&rfds)){//---------------------------if11
                         cnt = recv(fdl[i],buf,sizeof(buf),0);
                         //成功
                         if(cnt > 0){//---------------------------if12
-                            fprintf(stdout,"recv:\"%s\"\n",buf);
+                            fprintf(stdout,"recv from socket %d:\"%s\"\n",fdl[i],buf);
+
+                            if(send(fdl[i],buf,sizeof(buf),0) < 0){
+                                perror("send");
+                                goto end;
+                            }
+                            fprintf(stdout,"send to socket %d:\"%s\"\n",fdl[i],buf);
                         }else if(cnt == 0){//接続途切れ->not accept状態を示す-1で書き換え
                             fprintf(stdout,"socket:%d disconnected. \n",fdl[i]);
                             close(fdl[i]);
@@ -118,7 +131,9 @@ int main(){//-----------------------------------------------------------main
                         }else{//失敗したら処理終了
                             goto end;
                         }//------------------------------------e_if12
-                    }//---------------------------------------------------e_if11
+                    }else{//---------------------------------------------------e_if11
+                        fprintf(stdout,"not in ready\n");
+                    }
                 }//---------------------------------------------------------------------e_for4
         }//------------------------------------------------------e_if6
     }//--------------------------------------------------------------------------------------------e_while
