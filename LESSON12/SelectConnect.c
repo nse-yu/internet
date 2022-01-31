@@ -14,7 +14,6 @@ int main(int argc,char** argv){//-----------------------------------------------
     struct servent *serv;
     struct sockaddr_in addr,rcvaddr;
     int len;
-    fd_set fds,readfds;
     char buf[2048];
     unsigned short myPort;
     int cnt;

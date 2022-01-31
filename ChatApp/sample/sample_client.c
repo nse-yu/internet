@@ -14,9 +14,6 @@ int main(int argc,char** argv){
     struct sockaddr_in s_addr;
     char buf[BUF_SIZE];
 
-    //initialize the buf
-    memset(buf,'\0',sizeof(buf));
-
     //create the socket
     if((sock = socket(AF_INET,SOCK_STREAM,0)) < 0){
         fprintf(stderr,"socket() err\n");
@@ -34,33 +31,44 @@ int main(int argc,char** argv){
         exit(EXIT_FAILURE);
     }
 
-    //set a message
-    memcpy(buf,"UNKO",strlen("UNKO"));
+    while(1){
+        //initialize the buf
+        memset(buf,'\0',sizeof(buf));
 
-    //sleep
-    sleep(3);
+        //set the message
+        printf("\x1b[36m");
+        printf("[send] ");
+        scanf("%s",buf);
 
-    //send messages to server
-    if(send(sock,buf,sizeof(buf),0) < 0){
-        fprintf(stderr,"send() err\n");
-        close(sock);
-        exit(EXIT_FAILURE);
+        //sleep
+        sleep(1);
+
+        //send messages to server
+        if(send(sock,buf,sizeof(buf),0) < 0)
+        {
+            fprintf(stderr,"send() err\n");
+            close(sock);
+            exit(EXIT_FAILURE);
+        }
+
+        //reinitialize the buf
+        memset(buf,'\0',sizeof(buf));
+
+        //after sending, receive messages from server
+        if(recv(sock,buf,sizeof(buf),0) < 0)
+        {
+            fprintf(stderr,"recv() err\n");
+            close(sock);
+            exit(EXIT_FAILURE);        
+        }
+        printf("\x1b[35m");
+        printf("\n[recv] %s\n",buf);
+        printf("\n");
     }
-    printf("[send] %s\n",buf);
-
-    //reinitialize the buf
-    memset(buf,'\0',sizeof(buf));
-
-    //after sending, receive messages from server
-    if(recv(sock,buf,sizeof(buf),0) < 0){
-        fprintf(stderr,"recv() err\n");
-        close(sock);
-        exit(EXIT_FAILURE);        
-    }
-    printf("[recv] %s\n",buf);
 
     //close the socket
     close(sock);
+    printf("\x1b[36m");
 
     return 0;
 }
